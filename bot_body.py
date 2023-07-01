@@ -8,7 +8,6 @@ from aiogram.utils import executor
 from aiogram.utils.exceptions import NetworkError
 from constant import BOT_TOKEN, CARD_1, CARD_2
 
-# Ініціалізація бота та зберігання станів
 bot_token = BOT_TOKEN
 bot = Bot(token=bot_token)
 storage = MemoryStorage()
