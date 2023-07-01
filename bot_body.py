@@ -6,7 +6,6 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.utils import executor
 from aiogram.utils.exceptions import NetworkError
-from constant import BOT_TOKEN, CARD_1, CARD_2
 
 bot_token = BOT_TOKEN
 bot = Bot(token=bot_token)
