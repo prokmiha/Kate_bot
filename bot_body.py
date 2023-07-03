@@ -7,6 +7,8 @@ from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.utils import executor
 from aiogram.utils.exceptions import NetworkError
 
+print('hello')
+
 bot_token = BOT_TOKEN
 bot_token = os.environ.get('BOT_TOKEN')
 print(bot_token)
