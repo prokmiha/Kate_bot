@@ -6,7 +6,9 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.utils import executor
 from aiogram.utils.exceptions import NetworkError
+from constant import BOT_TOKEN
 
+# Ініціалізація бота та зберігання станів
 bot_token = BOT_TOKEN
 bot = Bot(token=bot_token)
 storage = MemoryStorage()
@@ -26,6 +28,7 @@ async def start_bot():
 			logging.error('Network error occurred. Restarting bot...')
 			await asyncio.sleep(5)
 
+
 @dp.message_handler(commands=['start'])
 async def start_command(message: types.Message):
 	keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
@@ -37,10 +40,7 @@ async def start_command(message: types.Message):
 	last_name = message.from_user.last_name
 	username = message.from_user.username
 
-	global none_counter
-	if not username:
-		username = "None_" + str(none_counter)
-		none_counter += 1
+
 	if username not in user_data:
 		user_data[username] = {
 			'user_id': user_id,
@@ -60,12 +60,12 @@ async def start_command(message: types.Message):
 @dp.message_handler(lambda message: message.text == 'Інструкція')
 async def process_training(message: types.Message):
 	await message.answer(
-		"""Збірку  я надішлю тобі  особисто на електронну пошту або в особисті повідомлення в телеграм."
-		Натиснувши на кнопку «Придбати» ти знайдеш всі необхідні рекізити.
-		<b>Після оплати, будь-ласка, надішли скріншот успішної операції на пошту або мені у особисті повідомлення</b> ✨""",
+"""Збірку  я надішлю тобі  особисто на електронну пошту або в особисті повідомлення в телеграм."
+Натиснувши на кнопку «Придбати» ти знайдеш всі необхідні рекізити.
+<b>Після оплати, будь-ласка, надішли скріншот успішної операції на пошту або мені у особисті повідомлення</b> ✨""",
 		parse_mode='HTML')
 	await message.answer(
-		"Якщо у тебе виникнуть запитання або складнощі, також не соромся звернутись до мене у особисті повідомлення 🥰")
+"Якщо у тебе виникнуть запитання або складнощі, також не соромся звернутись до мене у особисті повідомлення 🥰")
 
 
 @dp.message_handler(lambda message: message.text == 'Придбати')
@@ -76,17 +76,17 @@ async def process_purchase(message: types.Message):
 		"""<i>Кожен мною написаний твір несе в собі важливі послання.
 	Сподіваюсь, що з ними ти віднайдеш клаптик віри, жменю надії і двісті пʼятдесят грамів тепла, що приведуть тебе до спокою і любові❤️</i>""",
 		reply_markup=keyboard_hide, parse_mode="HTML")
-	await message.answer(f'''Вартість збірки: 600 грн. 
+	await message.answer('''Вартість збірки: 600 грн. 
 Оплатити можна двома способами: 
 
 <b>• Карта монобанк:</b>
 
-<code>{CARD_1}
+<code>4441 1144 1030 1590
 Катерина Война</code> 
 
 <b>• Європейський рахунок:</b> 
 
-<code>{CARD_2}
+<code>IBAN PT50 0007 0000 0031 6455 8082 3
 Kateryna Voina 
 Сума: 15€</code>''', parse_mode="HTML")
 
