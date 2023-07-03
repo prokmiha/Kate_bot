@@ -9,8 +9,8 @@ from aiogram.utils.exceptions import NetworkError
 
 print('hello')
 bot_token = os.environ.get('BOT_TOKEN')
-print(bot_token)
-bot_token = f'{BOT_TOKEN}'
+# print(bot_token)
+# bot_token = f'{BOT_TOKEN}'
 
 bot = Bot(token=bot_token)
 storage = MemoryStorage()
@@ -85,12 +85,12 @@ async def process_purchase(message: types.Message):
 
 <b>• Карта монобанк:</b>
 
-<code>{CARD_1}
+	<code>{os.environ.get('CARD_1')}
 Катерина Война</code> 
 
 <b>• Європейський рахунок:</b> 
 
-<code>{CARD_2}
+<code>{os.environ.get('CARD_2')}
 Kateryna Voina 
 Сума: 15€</code>''', parse_mode="HTML")
 
