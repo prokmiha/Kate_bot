@@ -8,10 +8,10 @@ from aiogram.utils import executor
 from aiogram.utils.exceptions import NetworkError
 
 print('hello')
-
-bot_token = f'{BOT_TOKEN}'
 bot_token = os.environ.get('BOT_TOKEN')
 print(bot_token)
+bot_token = f'{BOT_TOKEN}'
+
 bot = Bot(token=bot_token)
 storage = MemoryStorage()
 dp = Dispatcher(bot, storage=storage)
