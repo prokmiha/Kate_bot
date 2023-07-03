@@ -1,13 +1,15 @@
 import logging
 import asyncio
 from datetime import datetime
-
+import os
 from aiogram import Bot, Dispatcher, types
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.utils import executor
 from aiogram.utils.exceptions import NetworkError
 
 bot_token = BOT_TOKEN
+bot_token = os.environ.get('BOT_TOKEN')
+print(bot_token)
 bot = Bot(token=bot_token)
 storage = MemoryStorage()
 dp = Dispatcher(bot, storage=storage)
