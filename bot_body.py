@@ -9,7 +9,7 @@ from aiogram.utils.exceptions import NetworkError
 
 print('hello')
 
-bot_token = BOT_TOKEN
+bot_token = f'{BOT_TOKEN}'
 bot_token = os.environ.get('BOT_TOKEN')
 print(bot_token)
 bot = Bot(token=bot_token)
