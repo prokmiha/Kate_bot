@@ -12,19 +12,14 @@ from bot_handler import BotHandler
 # git push heroku master
 bot_token = os.environ.get('BOT_TOKEN')
 
-user_data = {}
-unic_users = []
-none_counter = 1
 bot = Bot(token=bot_token)
 storage = MemoryStorage()
 dp = Dispatcher(bot, storage=storage)
 logging.basicConfig(level=logging.INFO)
 
-bot_handler = BotHandler(dp, user_data, unic_users, none_counter)
+bot_handler = BotHandler(dp)
 regeneration = Regeneration(dp, bot)
 kinoterapy = Kinoterapy(dp, bot)
-
-
 
 
 async def start_bot():
@@ -41,8 +36,8 @@ async def start_command(message: types.Message):
 	await bot_handler.start_command(message)
 
 
-async def write_names_to_file():
-	await bot_handler.write_names_to_file()
+# async def write_names_to_file():
+# 	await bot_handler.write_names_to_file()
 
 
 @dp.message_handler(text='До початку')
@@ -104,7 +99,7 @@ async def echo(message: types.Message):
 if __name__ == '__main__':
 	loop = asyncio.get_event_loop()
 	try:
-		loop.create_task(write_names_to_file())
+		# loop.create_task(write_names_to_file())
 		loop.create_task(start_bot())
 		loop.run_forever()
 	finally:

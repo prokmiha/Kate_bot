@@ -9,10 +9,11 @@ class Kinoterapy:
 
 	@staticmethod
 	async def kinoterapy_startup_menu(message: types.Message):
-		keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
-		keyboard.add(types.KeyboardButton(text='Програма кінотерапії'))
-		keyboard.add(types.KeyboardButton(text='Оплатити'))
-		keyboard.add(types.KeyboardButton(text='До початку'))
+		keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=3)
+		program = (types.KeyboardButton(text='Програма кінотерапії'))
+		to_buy = (types.KeyboardButton(text='Оплатити'))
+		to_the_beginning = (types.KeyboardButton(text='До початку'))
+		keyboard.add(program, to_buy, to_the_beginning)
 
 		await message.answer(
 			"""Привіт-привіт 💫 

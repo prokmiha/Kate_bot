@@ -7,10 +7,11 @@ class Regeneration:
 		self.bot = bot
 
 	async def startup_menu(self, message: types.Message):
-		keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
-		keyboard.add(types.KeyboardButton(text='Інструкція'))
-		keyboard.add(types.KeyboardButton(text='Придбати'))
-		keyboard.add(types.KeyboardButton(text='До початку'))
+		keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=3)
+		instruction = (types.KeyboardButton(text='Інструкція'))
+		to_buy = (types.KeyboardButton(text='Придбати'))
+		to_the_beginning = (types.KeyboardButton(text='До початку'))
+		keyboard.add(instruction, to_buy, to_the_beginning)
 
 		await message.answer(
 			"Привіт 🫶🏼\n\nДякую за твою цікавість до моєї першої збірки віршів <i><b>«регенерація»</b></i>.",

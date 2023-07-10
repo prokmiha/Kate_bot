@@ -6,7 +6,7 @@ from aiogram import types
 
 class BotHandler:
 
-	def __init__(self, dp, user_data, unic_users, none_counter):
+	def __init__(self, dp):
 		self.dp = dp
 		# self.user_data = user_data
 		# self.unic_users = unic_users
@@ -14,9 +14,10 @@ class BotHandler:
 
 	async def start_command(self, message: types.Message):
 
-		keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
-		keyboard.add(types.KeyboardButton(text='Збірка віршів «Регенерація»'))
-		keyboard.add(types.KeyboardButton(text='Кінотерапія'))
+		keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
+		regeneration = (types.KeyboardButton(text='Збірка віршів «Регенерація»'))
+		kinoterapy = (types.KeyboardButton(text='Кінотерапія'))
+		keyboard.add(regeneration, kinoterapy)
 
 		# user_id = message.from_user.id
 		# first_name = message.from_user.first_name
