@@ -48,8 +48,8 @@ class Regeneration:
 	Сума: 15€</code>''', parse_mode="HTML")
 
 		keyboard = types.InlineKeyboardMarkup()
-		email_button = types.InlineKeyboardButton(text='Електронна адреса', callback_data='copy_email')
-		chat_button = types.InlineKeyboardButton(text='Написати в особисті', url='https://t.me/kate_voina')
+		email_button = types.InlineKeyboardButton(text='Пошта', callback_data='copy_email')
+		chat_button = types.InlineKeyboardButton(text='В особисті', url='https://t.me/kate_voina')
 		main_menu_button = types.InlineKeyboardButton(text='До початку', callback_data='main_menu')
 		keyboard.add(email_button, chat_button, main_menu_button)
 
