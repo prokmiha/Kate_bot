@@ -10,7 +10,7 @@ from regeneration import Regeneration
 from bot_handler import BotHandler
 
 # git push heroku master
-bot_token = "5820853278:AAEI9R140HkDEOr1vP2MYJx3srsLfGtWsi8"
+bot_token = os.environ.get('BOT_TOKEN')
 
 user_data = {}
 unic_users = []
