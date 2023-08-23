@@ -1,6 +1,5 @@
 import logging
 import asyncio
-import os
 from aiogram import Bot, Dispatcher, types
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.utils.exceptions import NetworkError
@@ -10,7 +9,7 @@ from regeneration import Regeneration
 from bot_handler import BotHandler
 
 # git push heroku master
-bot_token = os.environ.get('BOT_TOKEN')
+bot_token = "5820853278:AAEI9R140HkDEOr1vP2MYJx3srsLfGtWsi8"
 
 bot = Bot(token=bot_token)
 storage = MemoryStorage()
@@ -76,7 +75,7 @@ async def kinoterapy_start(message: types.Message):
 	await kinoterapy.kinoterapy_startup_menu(message)
 
 
-@dp.message_handler(lambda message: message.text == 'Оплатити')
+@dp.message_handler(lambda message: message.text == 'Сплатити')
 async def kinoterapy_purchase(message: types.Message):
 	await kinoterapy.kinoterapy_process_purchase(message)
 
