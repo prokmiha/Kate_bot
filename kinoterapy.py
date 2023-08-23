@@ -45,10 +45,7 @@ class Kinoterapy:
 	async def kinoterapy_process_purchase(message: types.Message):
 		keyboard_hide = types.ReplyKeyboardRemove()  # Удаляем клавиатуру
 
-		await message.answer(
-			"""<i>Кожен мною написаний твір несе в собі важливі послання.
-		Сподіваюсь, що з ними ти віднайдеш клаптик віри, жменю надії і двісті пʼятдесят грамів тепла, що приведуть тебе до спокою і любові❤️</i>""",
-			reply_markup=keyboard_hide, parse_mode="HTML")
+		await message.answer_photo(photo=open('IMG_7821.JPG', 'rb'))
 		await message.answer(f'''Оплатити своє місце у кінотерапії можливо двома способами: 
 
  • Карта монобанк 
@@ -56,8 +53,8 @@ class Kinoterapy:
 Катерина Война</code> 
 
 Сума в гривнях: 
-1650 грн — пакет без зворотнього зв’язку 
-2930 грн — пакет зі зворотнім зв’язком від мене 
+1680 грн — пакет без зворотнього зв’язку 
+3150 грн — пакет зі зворотнім зв’язком від мене 
 
 Щоб сплатити на європейський рахунок: 
 <code>{os.environ.get('CARD_2')}
@@ -65,7 +62,7 @@ Kateryna Voina</code>
 
 Сума в евро: 
 41€ — пакет без зворотнього зв’язку 
-73€ — зі зворотнім зв’язком від мене особисто ''', parse_mode="HTML")
+78€ — зі зворотнім зв’язком від мене особисто ''', parse_mode="HTML")
 
 		keyboard = types.InlineKeyboardMarkup()
 		email_button = types.InlineKeyboardButton(text='Пошта', callback_data='copy_email')
