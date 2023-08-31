@@ -1,6 +1,7 @@
 import logging
 import asyncio
 import os
+from datetime import date
 
 from aiogram import Bot, Dispatcher, types
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
@@ -21,6 +22,8 @@ logging.basicConfig(level=logging.INFO)
 bot_handler = BotHandler(dp)
 regeneration = Regeneration(dp, bot)
 kinoterapy = Kinoterapy(dp, bot)
+next_session_date = date(2023, 10, 7)
+current_date = date.today()
 
 
 async def start_bot():
@@ -74,7 +77,10 @@ async def regeneration_email(query: types.CallbackQuery):
 
 @dp.message_handler(lambda message: message.text == 'Кінотерапія')
 async def kinoterapy_start(message: types.Message):
-	await kinoterapy.kinoterapy_startup_menu(message)
+	if current_date < next_session_date:
+		await kinoterapy.kinoterapy_not_allowed(message)
+	else:
+		await kinoterapy.kinoterapy_startup_menu(message)
 
 
 @dp.message_handler(lambda message: message.text == 'Сплатити')

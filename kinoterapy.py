@@ -8,6 +8,16 @@ class Kinoterapy:
 		self.bot = bot
 
 	@staticmethod
+	async def kinoterapy_not_allowed(message: types.Message):
+		keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)
+		to_the_beginning = (types.KeyboardButton(text='До початку'))
+		keyboard.add(to_the_beginning)
+
+		await message.answer("""
+Привіт, друже. Наразі набір на Кінотерапію завершено.
+Проте не засмучуйся, адже вже 7 жовтня я знову буду з нетерпінням чекати на тебе)""", reply_markup=keyboard)
+
+	@staticmethod
 	async def kinoterapy_startup_menu(message: types.Message):
 		keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=3)
 		program = (types.KeyboardButton(text='Програма кінотерапії'))
