@@ -14,7 +14,7 @@ class Kinoterapy:
 		keyboard.add(to_the_beginning)
 
 		await message.answer("""
-Привіт, друже. Наразі набір на Кінотерапію завершено.
+Привіт, красуне. Наразі набір на Кінотерапію завершено.
 Проте не засмучуйся, адже вже 7 жовтня я знову буду з нетерпінням чекати на тебе)""", reply_markup=keyboard)
 
 	@staticmethod
