@@ -22,7 +22,7 @@ logging.basicConfig(level=logging.INFO)
 bot_handler = BotHandler(dp)
 regeneration = Regeneration(dp, bot)
 kinoterapy = Kinoterapy(dp, bot)
-next_session_date = date(2023, 10, 7)
+next_session_date = date(2023, 10, 10)
 current_date = date.today()
 
 
@@ -38,10 +38,6 @@ async def start_bot():
 @dp.message_handler(commands=['start'])
 async def start_command(message: types.Message):
 	await bot_handler.start_command(message)
-
-
-# async def write_names_to_file():
-# 	await bot_handler.write_names_to_file()
 
 
 @dp.message_handler(text='До початку')
@@ -106,7 +102,6 @@ async def echo(message: types.Message):
 if __name__ == '__main__':
 	loop = asyncio.get_event_loop()
 	try:
-		# loop.create_task(write_names_to_file())
 		loop.create_task(start_bot())
 		loop.run_forever()
 	finally:

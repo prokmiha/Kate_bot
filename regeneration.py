@@ -1,6 +1,7 @@
 import os
 from aiogram import types
 
+
 class Regeneration:
 	def __init__(self, dp, bot):
 		self.dp = dp

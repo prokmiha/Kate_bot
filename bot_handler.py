@@ -1,6 +1,3 @@
-import asyncio
-from datetime import datetime
-
 from aiogram import types
 
 
@@ -8,10 +5,6 @@ class BotHandler:
 
 	def __init__(self, dp):
 		self.dp = dp
-
-	# self.user_data = user_data
-	# self.unic_users = unic_users
-	# self.none_counter = none_counter
 
 	async def start_command(self, message: types.Message):
 
