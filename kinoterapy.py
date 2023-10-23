@@ -15,7 +15,7 @@ class Kinoterapy:
 
 		await message.answer("""
 Привіт, красуне. Наразі набір на Кінотерапію завершено.
-Проте не засмучуйся, адже вже 10 жовтня я знову буду з нетерпінням чекати на тебе)""", reply_markup=keyboard)
+Проте не засмучуйся, адже згодом я знову буду з нетерпінням чекати на тебе)""", reply_markup=keyboard)
 
 	@staticmethod
 	async def kinoterapy_startup_menu(message: types.Message):
