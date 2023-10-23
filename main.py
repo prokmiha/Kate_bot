@@ -22,7 +22,7 @@ logging.basicConfig(level=logging.INFO)
 bot_handler = BotHandler(dp)
 regeneration = Regeneration(dp, bot)
 kinoterapy = Kinoterapy(dp, bot)
-next_session_date = date(2023, 9, 9)
+next_session_date = date(2024, 9, 9)
 current_date = date.today()
 
 
