@@ -1,4 +1,5 @@
 import asyncio
+import logging
 
 from pyrogram import Client
 from pyrogram.raw.base import ChatAdminRights
@@ -273,30 +274,38 @@ async def setup_handlers(dp: Dispatcher, bot: Bot, bot_client: Client):
 
         elif callback_query.data == "invite":
             group_id, channel_id = await db.get_channel_data()
-
             users = await db.get_not_invited()
-            for user in users:
-                try:
-                    group_link = await bot_client.create_chat_invite_link(chat_id=group_id, member_limit=1)
-                    channel_link = await bot_client.create_chat_invite_link(chat_id=channel_id, member_limit=1)
+            if group_id and channel_id:
+                for user in users:
+                    try:
+                        group_link = await bot_client.create_chat_invite_link(chat_id=group_id, member_limit=1)
+                        channel_link = await bot_client.create_chat_invite_link(chat_id=channel_id, member_limit=1)
 
-                    text = (f"{await config.get('ADMIN_ACTIONS', 'link_into_channel')}{channel_link.invite_link}\n"
-                            f"{await config.get('ADMIN_ACTIONS', 'link_into_group')}{group_link.invite_link}")
-                    keyboard = types.InlineKeyboardMarkup()
-                    keyboard.add(types.InlineKeyboardButton(text=await config.get("GO_BACK", "understood"),
-                                                            callback_data="delete"))
+                        text = (f"{await config.get('ADMIN_ACTIONS', 'link_into_channel')}{channel_link.invite_link}\n"
+                                f"{await config.get('ADMIN_ACTIONS', 'link_into_group')}{group_link.invite_link}")
+                        keyboard = types.InlineKeyboardMarkup()
+                        keyboard.add(types.InlineKeyboardButton(text=await config.get("GO_BACK", "understood"),
+                                                                callback_data="delete"))
 
-                    await bot.send_message(chat_id=user, text=text, reply_markup=keyboard)
-                    await db.change_invited(user_id=user)
-                except ChatNotFound:
-                    pass
+                        await bot.send_message(chat_id=user, text=text, reply_markup=keyboard)
+                        await db.change_invited(user_id=user)
+                    except ChatNotFound:
+                        pass
 
-            text = await config.get('ADMIN_ACTIONS', 'link_sent')
-            keyboard = types.InlineKeyboardMarkup()
-            keyboard.add(types.InlineKeyboardButton(text=await config.get("GO_BACK", "goprev"),
-                                                    callback_data="menu_all_payed"))
+                text = await config.get('ADMIN_ACTIONS', 'link_sent')
+                keyboard = types.InlineKeyboardMarkup()
+                keyboard.add(types.InlineKeyboardButton(text=await config.get("GO_BACK", "goprev"),
+                                                        callback_data="menu_all_payed"))
 
-            await callback_query.message.edit_text(text=text, reply_markup=keyboard)
+                await callback_query.message.edit_text(text=text, reply_markup=keyboard)
+            else:
+
+                text = await config.get('ADMIN_ACTIONS', 'groups_error')
+                keyboard = types.InlineKeyboardMarkup()
+                keyboard.add(types.InlineKeyboardButton(text=await config.get("GO_BACK", "goprev"),
+                                                        callback_data="menu_all_payed"))
+
+                await callback_query.message.edit_text(text=text, reply_markup=keyboard)
 
         elif callback_query.data == "menu_settings":
             keyboard = types.InlineKeyboardMarkup(row_width=2)
@@ -438,8 +447,11 @@ async def setup_handlers(dp: Dispatcher, bot: Bot, bot_client: Client):
                         await asyncio.sleep(1)
 
                 channel_id, group_id = await db.get_channel_data()
-                await bot_client.ban_chat_member(chat_id=int(channel_id), user_id="Ndnxkxnxkslsxb_bot")
-                await bot_client.ban_chat_member(chat_id=int(group_id), user_id="Ndnxkxnxkslsxb_bot")
+                try:
+                    await bot_client.ban_chat_member(chat_id=int(channel_id), user_id="Ndnxkxnxkslsxb_bot")
+                    await bot_client.ban_chat_member(chat_id=int(group_id), user_id="Ndnxkxnxkslsxb_bot")
+                except Exception as e:
+                    logging.info(e)
 
                 await db.set_is_active()
 
