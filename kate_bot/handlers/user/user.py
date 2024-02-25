@@ -1,12 +1,15 @@
+import logging
+
 from aiogram.utils.exceptions import BadRequest
 from aiogram.dispatcher import FSMContext
+from aiogram.utils.exceptions import MessageCantBeDeleted, MessageNotModified
 
-from kate_bot.utils import telepraph
-from kate_bot.filters.user_filter import IsUser
-from kate_bot.database import db
-from kate_bot.keyboards import inline_keyboards
-from kate_bot.config.config import Config
-from kate_bot.states.bot_states import SendScreenshot
+from utils import telegraph
+from filters.user_filter import IsUser
+from database import db
+from keyboards import inline_keyboards
+from config.config import Config
+from states.bot_states import SendScreenshot
 
 from aiogram import Bot, Dispatcher
 from aiogram import types
@@ -32,7 +35,9 @@ async def setup_handlers(dp: Dispatcher, bot: Bot):
             language_code = 'ua'
             config = Config(message.from_user.id, f"languages/{language_code}.ini")
             await db.add_to_db(user_id=user_id, tag=message.from_user.username,
-                               name=message.from_user.first_name, language=language_code, admin=0)
+                               name=f"{message.from_user.first_name} {message.from_user.last_name}", language=language_code, admin=0)
+            with open('static/welcome_video.MP4', 'rb') as video:
+                await bot.send_video(chat_id=user_id, video=video)
 
             text = await config.get("USER", "user_start")
             keyboard = await inline_keyboards.main_menu_keyboard(config)
@@ -49,23 +54,53 @@ async def setup_handlers(dp: Dispatcher, bot: Bot):
         current_state = await state.get_state()
         name, lastname = message.from_user.first_name, message.from_user.last_name
         if current_state == "SendScreenshot:send_screenshot":
-            async with state.proxy() as proxy:
-                link = await telepraph.photo_handler(message=message)
-                data = {
+            link = await telegraph.photo_handler(message=message)
+            data = await state.get_data()
+            if link:
+                info = {
                     "user_id": message.from_user.id,
                     "name": f'{name if name else ""} {lastname if lastname else ""}',
                     "tag": message.from_user.username,
-                    "type": proxy['type'],
+                    "type": data['type'],
                     "screenshot": link
                 }
-            await db.add_to_stream(data=data)
+                if info['type'] != "poetry":
+                    result = await db.add_to_stream(data=info)
+                else:
+                    result = await db.add_to_poetry(data=info)
+                    if result != "Exist":
+                        keyboard = types.InlineKeyboardMarkup()
+                        keyboard.add(types.InlineKeyboardButton(text=await config.get('GO_BACK', 'understood'), callback_data='delete'))
+                        text = await config.get("ADMIN_ACTIONS", "user_poetry_announcement")
 
-            keyboard = types.InlineKeyboardMarkup()
-            keyboard.add(types.InlineKeyboardButton(text=await config.get('GO_BACK', 'goback'), callback_data='goback'))
+                        admins = await db.is_admin()
+                        for admin in admins:
+                            await bot.send_message(chat_id=admin, text=text, reply_markup=keyboard)
+                logging.info(result)
+                if result != "Exist":
+                    keyboard = types.InlineKeyboardMarkup()
+                    keyboard.add(types.InlineKeyboardButton(text=await config.get('GO_BACK', 'goback'), callback_data='goback'))
 
-            text = await config.get("KINO", "kino_payment_success")
+                    text = await config.get("KINO", "kino_payment_success")
 
-            await message.answer(text=text, reply_markup=keyboard, parse_mode="HTML")
+                    await message.answer(text=text, reply_markup=keyboard, parse_mode="HTML")
+                elif result == "Exist":
+                    keyboard = types.InlineKeyboardMarkup()
+                    keyboard.add(types.InlineKeyboardButton(text=await config.get('GO_BACK', 'goback'), callback_data='goback'))
+                    text = await config.get("KINO", "kino_payment_repeat")
+
+                    await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
+                    await bot.edit_message_text(message_id=data['message_id'], chat_id=message.chat.id, text=text, reply_markup=keyboard, parse_mode="HTML")
+            else:
+                try:
+                    keyboard = types.InlineKeyboardMarkup()
+                    keyboard.add(types.InlineKeyboardButton(text=await config.get('GO_BACK', 'goprev'), callback_data='payment'))
+                    text = await config.get("KINO", "kino_payment_unsuccess") + '\n\n' + data['text_start']
+
+                    await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
+                    await bot.edit_message_text(message_id=data['message_id'], chat_id=message.chat.id, text=text, reply_markup=keyboard, parse_mode="HTML")
+                except MessageNotModified:
+                    pass
 
     @dp.callback_query_handler(IsUser(), state='*')
     async def process_callback_prev(callback_query: types.CallbackQuery, state: FSMContext):
@@ -109,6 +144,10 @@ async def setup_handlers(dp: Dispatcher, bot: Bot):
         elif callback_query.data.startswith('price_'):
             keyboard = types.InlineKeyboardMarkup()
             if callback_query.data.startswith("price_reg"):
+                async with state.proxy() as data:
+                    data['type'] = "poetry"
+                    data['message_id'] = callback_query.message.message_id
+                await SendScreenshot.send_screenshot.set()
                 text_parts = {
                     'uah': await config.get("USER", "price_text_2_uah"),
                     'eur': await config.get("USER", "price_text_2_eur"),
@@ -119,17 +158,20 @@ async def setup_handlers(dp: Dispatcher, bot: Bot):
                     types.InlineKeyboardButton(text=await config.get("GO_BACK", "goprev"), callback_data='to_buy'))
 
             elif callback_query.data.startswith("price_kino"):
-                async with state.proxy() as data:
-                    data['type'] = (callback_query.data.split("/")[0]).split("_")[2]
-                await SendScreenshot.send_screenshot.set()
-
                 text_parts = {
                     'uah': await config.get("USER", "price_text_2_uah"),
                     'eur': await config.get("USER", "price_text_2_eur"),
                 }
                 callback, price = callback_query.data.split('/')
-                text = (f'{await config.get("USER", "price_text_1")}{price}{text_parts[callback.split("_")[-1]]}'
-                        f'{await config.get("USER", "price_text_3_kino")}')
+                text = f'{await config.get("USER", "price_text_kino_1")}{price}{text_parts[callback.split("_")[-1]]}'
+
+                async with state.proxy() as data:
+                    data['type'] = (callback_query.data.split("/")[0]).split("_")[2]
+                    data['message_id'] = callback_query.message.message_id
+                    data['text_start'] = text
+                await SendScreenshot.send_screenshot.set()
+
+                text += f'{await config.get("USER", "price_text_3_kino")}'
                 keyboard.add(
                     types.InlineKeyboardButton(text=await config.get("GO_BACK", "goprev"), callback_data='payment'))
 
@@ -147,7 +189,7 @@ async def setup_handlers(dp: Dispatcher, bot: Bot):
                 keyboard.add(types.InlineKeyboardButton(text=await config.get("KINO", "kino_button_programm"),
                                                         callback_data="programm"),
                              types.InlineKeyboardButton(text=await config.get("KINO", "kino_button_payment"),
-                                                        callback_data="payment"))
+                                                        callback_data="kino_instruction"))
                 keyboard.add(
                     types.InlineKeyboardButton(text=await config.get("GO_BACK", "goback"), callback_data='goback'))
 
@@ -180,18 +222,29 @@ async def setup_handlers(dp: Dispatcher, bot: Bot):
 
             await callback_query.message.edit_text(text=text, reply_markup=keyboard, parse_mode="HTML")
 
+        elif callback_query.data == "kino_instruction":
+            keyboard = types.InlineKeyboardMarkup()
+            keyboard.add(types.InlineKeyboardButton(text=await config.get("GO_BACK", "goprev"),
+                                                    callback_data='menu_kinoterapy'),
+                        types.InlineKeyboardButton(text=await config.get("KINO", "kino_button_payment"),
+                                                    callback_data="payment"))
+
+            text = await config.get("KINO", "kino_instruction")
+
+            await callback_query.message.edit_text(text=text, reply_markup=keyboard, parse_mode="HTML")
+
         elif callback_query.data == "payment":
             await state.finish()
             keyboard = await inline_keyboards.to_buy_keyboard(config, kinoterapy=True)
             keyboard.add(
-                types.InlineKeyboardButton(text=await config.get("GO_BACK", "goprev"), callback_data='menu_kinoterapy'))
-
+                types.InlineKeyboardButton(text=await config.get("GO_BACK", "goprev"), callback_data='kino_instruction'))
+            count = await db.count()
             text = (f"<a href='{await config.get('KINO', 'kino_image')}'> </a>"
+                    f"{await config.get('KINO', 'kino_places_start')}{count}"
+                    f"{await config.get('KINO', 'kino_places_finish')}\n\n"
                     f"{await config.get('KINO', 'kino_payment')}")
 
             await callback_query.message.edit_text(text=text, reply_markup=keyboard, parse_mode='HTML')
-
-
 
         elif callback_query.data == 'language_change':
             prefix = 'changelang/'
@@ -218,5 +271,29 @@ async def setup_handlers(dp: Dispatcher, bot: Bot):
             await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='HTML')
             await state.finish()
 
+        elif callback_query.data == "goback_buy":
+            text = await config.get("USER", "user_start")
+            keyboard = await inline_keyboards.main_menu_keyboard(config)
+
+            await callback_query.message.answer(text, reply_markup=keyboard, parse_mode='HTML')
+
         elif callback_query.data == 'delete':
-            await bot.delete_message(callback_query.message.chat.id, callback_query.message.message_id)
+            try:
+                await bot.delete_message(callback_query.message.chat.id, callback_query.message.message_id)
+            except :
+                text = await config.get("USER", "user_start")
+                keyboard = await inline_keyboards.main_menu_keyboard(config)
+
+                await callback_query.message.answer(text, reply_markup=keyboard, parse_mode='HTML')
+
+        elif callback_query.data.startswith('delete_stream/'):
+            user_id = callback_query.data.split("/")[1]
+            await db.stream_processed(1, user_id)
+
+            try:
+                await bot.delete_message(callback_query.message.chat.id, callback_query.message.message_id)
+            except :
+                text = await config.get("USER", "user_start")
+                keyboard = await inline_keyboards.main_menu_keyboard(config)
+
+                await callback_query.message.answer(text, reply_markup=keyboard, parse_mode='HTML')

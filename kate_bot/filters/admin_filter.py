@@ -1,6 +1,6 @@
 from aiogram.types import Message
 from aiogram.dispatcher.filters import BoundFilter
-from kate_bot.database import db
+from database import db
 
 
 class IsAdmin(BoundFilter):

@@ -1,4 +1,6 @@
+import logging
 import aiosqlite
+from sqlite3 import IntegrityError
 
 
 async def start_db():
@@ -17,13 +19,25 @@ async def start_db():
         await cur.execute("""
         CREATE TABLE IF NOT EXISTS Stream(
             "ID" INTEGER PRIMARY KEY AUTOINCREMENT,
-            "ID_Telegram" INTEGER,
+            "ID_Telegram" INTEGER UNIQUE,
             "Name" TEXT,
             "Tag" TEXT,
             "Type" TEXT,
             "Screenshot" TEXT,
             "Processed" INTEGER DEFAULT 0,
-            "Invited" INTEGER DEFAULT 0
+            "Invited" INTEGER DEFAULT 0,
+            "Announced" INTEGER DEFAULT 0
+        )""")
+
+        await cur.execute("""
+        CREATE TABLE IF NOT EXISTS Poetry(
+            "ID" INTEGER PRIMARY KEY AUTOINCREMENT,
+            "ID_Telegram" INTEGER,
+            "Name" TEXT,
+            "Tag" TEXT,
+            "Type" TEXT,
+            "Screenshot" TEXT,
+            "Processed" INTEGER DEFAULT 0
         )""")
 
         await cur.execute("""
@@ -160,8 +174,23 @@ async def get_is_active():
 async def add_to_stream(data: dict):
     async with aiosqlite.connect("base.db") as db:
         cur = await db.cursor()
+        try:
+            await cur.execute("""INSERT INTO
+                    Stream (ID_Telegram, Name,  Tag, Type, Screenshot) 
+                    VALUES (?, ?, ?, ?, ?)""", (data["user_id"], data["name"], data["tag"], data["type"],
+                                                data["screenshot"]))
+            await db.commit()
+
+        except IntegrityError as e:
+            logging.info(e)
+            return "Exist"
+
+
+async def add_to_poetry(data: dict):
+    async with aiosqlite.connect("base.db") as db:
+        cur = await db.cursor()
         await cur.execute("""INSERT INTO
-                Stream (ID_Telegram, Name,  Tag, Type, Screenshot) 
+                Poetry (ID_Telegram, Name,  Tag, Type, Screenshot) 
                 VALUES (?, ?, ?, ?, ?)""", (data["user_id"], data["name"], data["tag"], data["type"],
                                             data["screenshot"]))
         await db.commit()
@@ -174,7 +203,19 @@ async def change_processed(user_id: int, processed: int):
             await cur.execute("UPDATE Stream SET Processed = 1 WHERE ID_Telegram = ?", (user_id,))
         elif processed == 2:
             await cur.execute("DELETE FROM Stream WHERE ID_Telegram = ?; ",
-                              (user_id, ))
+                              (user_id,))
+
+        await db.commit()
+
+
+async def change_poetry_processed(user_id: int, processed: int):
+    async with aiosqlite.connect("base.db") as db:
+        cur = await db.cursor()
+        if processed == 1:
+            await cur.execute("UPDATE Poetry SET Processed = 1 WHERE ID_Telegram = ?", (user_id,))
+        elif processed == 2:
+            await cur.execute("DELETE FROM Poetry WHERE ID_Telegram = ?; ",
+                              (user_id,))
 
         await db.commit()
 
@@ -192,7 +233,7 @@ async def change_invited(user_id: int):
     async with aiosqlite.connect("base.db") as db:
         cur = await db.cursor()
         await cur.execute("UPDATE Stream SET Invited = 1 WHERE ID_Telegram = ?", (user_id,))
-    
+
         await db.commit()
 
 
@@ -204,12 +245,22 @@ async def invoices():
         result = [record for record in existing_records]
 
         return result
-    
+
+
+async def poetry_invoices():
+    async with aiosqlite.connect("base.db") as db:
+        cur = await db.cursor()
+        await cur.execute("SELECT ID_Telegram, Name FROM Poetry WHERE Processed = 0")
+        existing_records = await cur.fetchall()
+        result = [record for record in existing_records]
+
+        return result
+
 
 async def accepted_invoices():
     async with aiosqlite.connect("base.db") as db:
         cur = await db.cursor()
-        await cur.execute("SELECT ID_Telegram, Tag, Type, Screenshot FROM Stream WHERE Processed = 1")
+        await cur.execute("SELECT ID_Telegram, Name FROM Stream WHERE Processed = 1")
         existing_records = await cur.fetchall()
         result = [record for record in existing_records]
 
@@ -234,13 +285,22 @@ async def with_call_back():
         result = [record for record in existing_records]
 
         return result
-    
+
 
 async def get_info_about_invoice(user_id: int):
     async with aiosqlite.connect("base.db") as db:
         cur = await db.cursor()
         await cur.execute("SELECT ID_Telegram, Tag, Type, Screenshot, Invited FROM Stream WHERE ID_Telegram = ?",
-                          (user_id, ))
+                          (user_id,))
+        result = await cur.fetchone()
+        return result
+
+
+async def get_info_about_poetry_invoice(user_id: int):
+    async with aiosqlite.connect("base.db") as db:
+        cur = await db.cursor()
+        await cur.execute("SELECT ID_Telegram, Tag, Screenshot FROM Poetry WHERE ID_Telegram = ?",
+                          (user_id,))
         result = await cur.fetchone()
         return result
 
@@ -270,5 +330,47 @@ async def update_group_data(id):
         cur = await db.cursor()
         await cur.execute("UPDATE Settings SET Value = ? WHERE Name = ?",
                           (id, "group_id"))
+
+        await db.commit()
+
+
+async def poetry_count():
+    async with aiosqlite.connect("base.db") as db:
+        cur = await db.cursor()
+        await cur.execute("SELECT COUNT(Processed) FROM Poetry WHERE Processed = 1")
+        result = await cur.fetchone()
+
+        return result[0]
+
+
+async def kino_count():
+    async with aiosqlite.connect("base.db") as db:
+        cur = await db.cursor()
+        await cur.execute("SELECT COUNT(Type) FROM Stream WHERE Processed = 1 AND Type = ?", ("personal",))
+        result_with = await cur.fetchone()
+
+        await cur.execute("SELECT COUNT(Type) FROM Stream WHERE Processed = 1 AND Type = ?", ("simple",))
+        result_without = await cur.fetchone()
+
+        return result_with[0], result_without[0]
+
+
+async def count():
+    async with aiosqlite.connect("base.db") as db:
+        cur = await db.cursor()
+        await cur.execute("SELECT COUNT(ID_Telegram) FROM Stream")
+        result = await cur.fetchone()
+
+        return 95 - result[0]
+
+
+async def stream_processed(value, user_id):
+    async with aiosqlite.connect("base.db") as db:
+        logging.info(1)
+        logging.info(value)
+        logging.info(user_id)
+        cur = await db.cursor()
+        await cur.execute("UPDATE Stream SET Announced = ? WHERE ID_Telegram = ?",
+                          (value, user_id))
 
         await db.commit()

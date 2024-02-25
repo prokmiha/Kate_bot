@@ -6,9 +6,9 @@ from config.config import Config
 from pyrogram import Client
 from aiogram.types import Update
 
-from kate_bot.database import db
-from kate_bot.handlers.admin import admin
-from kate_bot.handlers.user import user
+from database import db
+from handlers.admin import admin
+from handlers.user import user
 
 logging.basicConfig(level=logging.INFO)
 
@@ -41,13 +41,6 @@ class PyrogramInstance:
             client = Client(session_file_name, api_id=api_id, api_hash=api_hash)
             PyrogramInstance.bot_instance = client
         return PyrogramInstance.bot_instance
-
-
-async def handle_new_post(update: Update, bot: Bot = None):
-    chat_id = update['chat']['id']
-    print(chat_id)
-    if bot is not None:
-        await bot.leave_chat(chat_id)
 
 
 async def startup():

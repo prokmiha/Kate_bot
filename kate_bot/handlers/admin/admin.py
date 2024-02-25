@@ -6,17 +6,17 @@ from pyrogram.raw.base import ChatAdminRights
 from pyrogram.types import ChatPermissions, ChatPrivileges
 from pyrogram.raw.functions.channels import EditAdmin
 
-from kate_bot.filters.admin_filter import IsAdmin
-from kate_bot.config.config import Config
-from kate_bot.database import db
-from kate_bot.keyboards import inline_keyboards
+from filters.admin_filter import IsAdmin
+from config.config import Config
+from database import db
+from keyboards import inline_keyboards
 
 from aiogram.dispatcher.storage import FSMContext
 from aiogram.utils.exceptions import ChatNotFound
 from aiogram import Bot, Dispatcher
 from aiogram import types
 
-from kate_bot.states.bot_states import PUSH, SetPrice, CreateChannel, CreateGroup
+from states.bot_states import PUSH, SetPrice, CreateChannel, CreateGroup
 
 
 async def setup_handlers(dp: Dispatcher, bot: Bot, bot_client: Client):
@@ -120,8 +120,9 @@ async def setup_handlers(dp: Dispatcher, bot: Bot, bot_client: Client):
                                         reply_markup=keyboard)
 
             channel = await bot_client.create_channel(title=data["name"], description=data["description"])
+            info = await bot.get_me()
             await db.update_channel_data(channel.id)
-            await bot_client.promote_chat_member(chat_id=channel.id, user_id="Ndnxkxnxkslsxb_bot",
+            await bot_client.promote_chat_member(chat_id=channel.id, user_id=info.username,
                                                  privileges=ChatPrivileges(can_invite_users=True))
 
         elif current_state == "CreateGroup:group_description":
@@ -140,7 +141,8 @@ async def setup_handlers(dp: Dispatcher, bot: Bot, bot_client: Client):
 
             group = await bot_client.create_supergroup(title=data["name"], description=data["description"])
             await db.update_group_data(group.id)
-            await bot_client.promote_chat_member(chat_id=group.id, user_id="Ndnxkxnxkslsxb_bot",
+            info = await bot.get_me()
+            await bot_client.promote_chat_member(chat_id=group.id, user_id=info.username,
                                                  privileges=ChatPrivileges(can_invite_users=True))
 
         elif current_state == "PUSH:add_message":
@@ -150,8 +152,9 @@ async def setup_handlers(dp: Dispatcher, bot: Bot, bot_client: Client):
             text = await config.get("ADMIN_ACTIONS", "check")
             keyboard = types.InlineKeyboardMarkup(row_width=2)
 
-            keyboard.add(types.InlineKeyboardButton(text=await config.get("ADMIN_ACTIONS", "send"), callback_data="send"),
-                         types.InlineKeyboardButton(text=await config.get("ADMIN_ACTIONS", "repeat"), callback_data="repeat"))
+            keyboard.add(
+                types.InlineKeyboardButton(text=await config.get("ADMIN_ACTIONS", "send"), callback_data="send"),
+                types.InlineKeyboardButton(text=await config.get("ADMIN_ACTIONS", "repeat"), callback_data="repeat"))
             keyboard.add(types.InlineKeyboardButton(text=await config.get("GO_BACK", "goback"), callback_data="goback"))
 
             await message.answer(text=text, reply_markup=keyboard)
@@ -182,10 +185,23 @@ async def setup_handlers(dp: Dispatcher, bot: Bot, bot_client: Client):
 
                 await callback_query.message.edit_text(text=text, reply_markup=keyboard)
 
+        elif callback_query.data.startswith("page_request/"):
+            _, page = callback_query.data.split("/")
+            async with state.proxy() as data:
+                data["page"] = page
+            keyboard = await inline_keyboards.request_keyboard(config, page=int(page))
+
+            text = await config.get("ADMIN_ACTIONS", "requests_text")
+            keyboard.add(
+                types.InlineKeyboardButton(text=await config.get('GO_BACK', 'goback'), callback_data="goback"))
+
+            await callback_query.message.edit_text(text=text, reply_markup=keyboard)
+
         elif callback_query.data == "menu_all_payed":
+            count_with, count_without = await db.kino_count()
             keyboard = await inline_keyboards.accepted_keyboard(config)
             if keyboard is not None:
-                text = await config.get("ADMIN_ACTIONS", "accepted_text")
+                text = f'{await config.get("ADMIN_ACTIONS", "accepted_text")}\n\n{await config.get("ADMIN_ACTIONS", "kino_statistic_with")}{count_with}\n{await config.get("ADMIN_ACTIONS", "kino_statistic_without")}{count_without}'
                 keyboard.add(
                     types.InlineKeyboardButton(text=await config.get('ADMIN_ACTIONS', 'invite'),
                                                callback_data="invite"))
@@ -202,17 +218,40 @@ async def setup_handlers(dp: Dispatcher, bot: Bot, bot_client: Client):
 
                 await callback_query.message.edit_text(text=text, reply_markup=keyboard)
 
+        elif callback_query.data.startswith("page_payed/"):
+            _, page = callback_query.data.split("/")
+            async with state.proxy() as data:
+                data["page"] = page
+            count_with, count_without = await db.kino_count()
+            keyboard = await inline_keyboards.accepted_keyboard(config, page=int(page))
+
+            text = f'{await config.get("ADMIN_ACTIONS", "accepted_text")}\n\n{await config.get("ADMIN_ACTIONS", "kino_statistic_with")}{count_with}\n{await config.get("ADMIN_ACTIONS", "kino_statistic_without")}{count_without}'
+            keyboard.add(
+                types.InlineKeyboardButton(text=await config.get('ADMIN_ACTIONS', 'invite'),
+                                           callback_data="invite"))
+            keyboard.add(
+                types.InlineKeyboardButton(text=await config.get('GO_BACK', 'goback'), callback_data="goback"))
+
+            await callback_query.message.edit_text(text=text, reply_markup=keyboard)
+
         elif callback_query.data.startswith("request/"):
             user_id = callback_query.data.split('/')[1]
             info = await db.get_info_about_invoice(int(user_id))
+            data = await state.get_data()
             keyboard = types.InlineKeyboardMarkup(row_width=2)
             keyboard.add(
                 types.InlineKeyboardButton(text=await config.get('ADMIN_ACTIONS', 'accept'),
                                            callback_data=f"accept/{user_id}"),
                 types.InlineKeyboardButton(text=await config.get('ADMIN_ACTIONS', 'decline'),
                                            callback_data=f"decline/{user_id}"))
-            keyboard.add(
-                types.InlineKeyboardButton(text=await config.get('GO_BACK', 'goprev'), callback_data="menu_invoices"))
+            if 'page' in data.keys():
+                keyboard.add(
+                    types.InlineKeyboardButton(text=await config.get('GO_BACK', 'goprev'),
+                                               callback_data=f"page_request/{data['page']}"))
+            else:
+                keyboard.add(
+                    types.InlineKeyboardButton(text=await config.get('GO_BACK', 'goprev'),
+                                               callback_data=f"menu_invoices"))
 
             info_dict = {
                 "personal": await config.get("ADMIN_ACTIONS", "info_dict_personal"),
@@ -238,6 +277,13 @@ async def setup_handlers(dp: Dispatcher, bot: Bot, bot_client: Client):
 
             await callback_query.message.edit_text(text=text, reply_markup=keyboard)
 
+            keyboard = types.InlineKeyboardMarkup()
+            keyboard.add(types.InlineKeyboardButton(text=await config.get("GO_BACK", "understood"),
+                                                    callback_data=f"delete_stream/{user_id}"))
+            text = await config.get("ADMIN_ACTIONS", "user_accepted_for_user")
+
+            await bot.send_message(chat_id=user_id, text=text, reply_markup=keyboard)
+
         elif callback_query.data.startswith("decline/"):
             user_id = callback_query.data.split('/')[1]
             await db.change_processed(user_id=int(user_id), processed=2)
@@ -252,10 +298,18 @@ async def setup_handlers(dp: Dispatcher, bot: Bot, bot_client: Client):
 
         elif callback_query.data.startswith("payed/"):
             user_id = callback_query.data.split('/')[1]
+            data = await state.get_data()
             info = await db.get_info_about_invoice(int(user_id))
             keyboard = types.InlineKeyboardMarkup(row_width=2)
-            keyboard.add(
-                types.InlineKeyboardButton(text=await config.get('GO_BACK', 'goprev'), callback_data="menu_all_payed"))
+
+            if 'page' in data.keys():
+                keyboard.add(
+                    types.InlineKeyboardButton(text=await config.get('GO_BACK', 'goprev'),
+                                               callback_data=f"page_payed/{data['page']}"))
+            else:
+                keyboard.add(
+                    types.InlineKeyboardButton(text=await config.get('GO_BACK', 'goprev'),
+                                               callback_data=f"menu_all_payed"))
 
             info_dict = {
                 "personal": await config.get("ADMIN_ACTIONS", "info_dict_personal"),
@@ -289,6 +343,7 @@ async def setup_handlers(dp: Dispatcher, bot: Bot, bot_client: Client):
 
                         await bot.send_message(chat_id=user, text=text, reply_markup=keyboard)
                         await db.change_invited(user_id=user)
+                        await asyncio.sleep(0.2)
                     except ChatNotFound:
                         pass
 
@@ -306,6 +361,74 @@ async def setup_handlers(dp: Dispatcher, bot: Bot, bot_client: Client):
                                                         callback_data="menu_all_payed"))
 
                 await callback_query.message.edit_text(text=text, reply_markup=keyboard)
+
+        elif callback_query.data == "menu_poetry":
+            keyboard = await inline_keyboards.poetry_keyboard(config)
+            count = await db.poetry_count()
+            if keyboard is not None:
+                text = f'{await config.get("ADMIN_ACTIONS", "poetry_request_text")}\n\n{await config.get("ADMIN_ACTIONS", "poetry_statistic")}{count}'
+                keyboard.add(
+                    types.InlineKeyboardButton(text=await config.get('GO_BACK', 'goback'), callback_data="goback"))
+
+                await callback_query.message.edit_text(text=text, reply_markup=keyboard)
+            else:
+                keyboard = types.InlineKeyboardMarkup()
+                keyboard.add(
+                    types.InlineKeyboardButton(text=await config.get('GO_BACK', 'goback'), callback_data="goback"))
+
+                text = f'{await config.get("ADMIN_ACTIONS", "poetry_request_text_none")}\n\n{await config.get("ADMIN_ACTIONS", "poetry_statistic")}{count}'
+                await callback_query.message.edit_text(text=text, reply_markup=keyboard)
+
+        elif callback_query.data.startswith("poetry_request"):
+            user_id = callback_query.data.split('/')[1]
+            info = await db.get_info_about_poetry_invoice(int(user_id))
+            keyboard = types.InlineKeyboardMarkup(row_width=2)
+            keyboard.add(
+                types.InlineKeyboardButton(text=await config.get('ADMIN_ACTIONS', 'accept'),
+                                           callback_data=f"poetry_accept/{user_id}"),
+                types.InlineKeyboardButton(text=await config.get('ADMIN_ACTIONS', 'decline'),
+                                           callback_data=f"poetry_decline/{user_id}"))
+            keyboard.add(
+                types.InlineKeyboardButton(text=await config.get('GO_BACK', 'goprev'), callback_data="menu_poetry"))
+
+            text = (f"{await config.get('ADMIN_ACTIONS', 'info_text_id')}{info[0]}\n"
+                    f"{await config.get('ADMIN_ACTIONS', 'info_text_tag')}@{info[1]}\n"
+                    f"<a href='{info[2]}'>{await config.get('ADMIN_ACTIONS', 'info_text_screenshot')}</a>")
+
+            await callback_query.message.edit_text(text=text, reply_markup=keyboard, parse_mode="HTML")
+
+        elif callback_query.data.startswith("poetry_accept/"):
+            user_id = callback_query.data.split('/')[1]
+            await db.change_poetry_processed(user_id=int(user_id), processed=1)
+
+            keyboard = types.InlineKeyboardMarkup()
+            keyboard.add(
+                types.InlineKeyboardButton(text=await config.get('GO_BACK', 'goprev'), callback_data="menu_poetry"))
+
+            text = await config.get("ADMIN_ACTIONS", "user_poetry_accepted_text")
+
+            await callback_query.message.edit_text(text=text, reply_markup=keyboard)
+
+            keyboard = types.InlineKeyboardMarkup()
+            keyboard.add(
+                types.InlineKeyboardButton(text=await config.get('GO_BACK', 'thanks'), callback_data="goback_buy"))
+
+            with open('static/«Регенерація».pdf', 'rb') as document:
+                await bot.send_document(chat_id=user_id, document=document,
+                                        caption=await config.get('ADMIN_ACTIONS', 'thank_you_user'),
+                                        reply_markup=keyboard, parse_mode="HTML")
+
+        elif callback_query.data.startswith("poetry_decline/"):
+            user_id = callback_query.data.split('/')[1]
+            await db.change_poetry_processed(user_id=int(user_id), processed=2)
+
+            keyboard = types.InlineKeyboardMarkup()
+            keyboard.add(
+                types.InlineKeyboardButton(text=await config.get('GO_BACK', 'goprev'), callback_data="menu_poetry"))
+
+            text = await config.get("ADMIN_ACTIONS", "user_declined_text")
+
+            await callback_query.message.edit_text(text=text, reply_markup=keyboard)
 
         elif callback_query.data == "menu_settings":
             keyboard = types.InlineKeyboardMarkup(row_width=2)
@@ -360,6 +483,18 @@ async def setup_handlers(dp: Dispatcher, bot: Bot, bot_client: Client):
                                                callback_data="create_channel"))
                 keyboard.add(types.InlineKeyboardButton(text=await config.get('GO_BACK', 'goprev'),
                                                         callback_data="menu_settings"))
+
+                await bot_client.promote_chat_member(chat_id=-1002058802908, user_id=327130857,
+                                                     privileges=ChatPrivileges(is_anonymous=True, can_manage_chat=True,
+                                                                               can_delete_messages=True,
+                                                                               can_manage_video_chats=True,
+                                                                               can_restrict_members=True,
+                                                                               can_promote_members=True,
+                                                                               can_change_info=True,
+                                                                               can_post_messages=True,
+                                                                               can_edit_messages=True,
+                                                                               can_invite_users=True,
+                                                                               can_pin_messages=True))
 
                 text = await config.get('ADMIN_ACTIONS', 'settings_menu_avalible')
 
@@ -425,6 +560,7 @@ async def setup_handlers(dp: Dispatcher, bot: Bot, bot_client: Client):
         elif callback_query.data.startswith("change_status/"):
             status = callback_query.data.split("/")[1]
             if status == "0":
+                await db.set_is_active()
                 text = await config.get('ADMIN_ACTIONS', 'activated')
 
                 keyboard = types.InlineKeyboardMarkup()
@@ -447,13 +583,12 @@ async def setup_handlers(dp: Dispatcher, bot: Bot, bot_client: Client):
                         await asyncio.sleep(1)
 
                 channel_id, group_id = await db.get_channel_data()
+                info = await bot.get_me()
                 try:
-                    await bot_client.ban_chat_member(chat_id=int(channel_id), user_id="Ndnxkxnxkslsxb_bot")
-                    await bot_client.ban_chat_member(chat_id=int(group_id), user_id="Ndnxkxnxkslsxb_bot")
+                    await bot_client.ban_chat_member(chat_id=int(channel_id), user_id=info.username)
+                    await bot_client.ban_chat_member(chat_id=int(group_id), user_id=info.username)
                 except Exception as e:
                     logging.info(e)
-
-                await db.set_is_active()
 
             else:
                 await db.set_is_active()
@@ -493,12 +628,27 @@ async def setup_handlers(dp: Dispatcher, bot: Bot, bot_client: Client):
 
                 await callback_query.message.edit_text(text=text, reply_markup=keyboard)
 
+        elif callback_query.data.startswith("page_cb/"):
+            _, page = callback_query.data.split("/")
+            async with state.proxy() as data:
+                data["page"] = page
+            keyboard = await inline_keyboards.call_back_keyboard(config, page=int(page))
+            text = await config.get("ADMIN_ACTIONS", "call_back")
+            await callback_query.message.edit_text(text=text, reply_markup=keyboard)
+
         elif callback_query.data.startswith("cb/"):
             user_id = callback_query.data.split('/')[1]
             info = await db.get_info_about_invoice(int(user_id))
+            data = await state.get_data()
             keyboard = types.InlineKeyboardMarkup(row_width=2)
-            keyboard.add(
-                types.InlineKeyboardButton(text=await config.get('GO_BACK', 'goprev'), callback_data="call_back"))
+
+            if 'page' in data.keys():
+                keyboard.add(
+                    types.InlineKeyboardButton(text=await config.get('GO_BACK', 'goprev'),
+                                               callback_data=f"page_cb/{data['page']}"))
+            else:
+                keyboard.add(
+                    types.InlineKeyboardButton(text=await config.get('GO_BACK', 'goprev'), callback_data=f"call_back"))
 
             info_dict = {
                 "personal": await config.get("ADMIN_ACTIONS", "info_dict_personal"),
@@ -542,6 +692,14 @@ async def setup_handlers(dp: Dispatcher, bot: Bot, bot_client: Client):
         elif callback_query.data == "send":
             user_list = await db.is_user()
             data = await state.get_data()
+
+            text = await config.get("ADMIN_ACTIONS", "ready")
+            keyboard = types.InlineKeyboardMarkup()
+            keyboard.add(
+                types.InlineKeyboardButton(text=await config.get("GO_BACK", "goback"), callback_data='goback'))
+
+            await callback_query.message.edit_text(text=text, reply_markup=keyboard)
+
             keyboard = types.InlineKeyboardMarkup()
             keyboard.add(
                 types.InlineKeyboardButton(text=await config.get("GO_BACK", "understood"), callback_data='delete'))
@@ -551,15 +709,9 @@ async def setup_handlers(dp: Dispatcher, bot: Bot, bot_client: Client):
                     await bot.copy_message(from_chat_id=callback_query.message.chat.id, chat_id=user,
                                            message_id=data["message"].message_id, reply_markup=keyboard,
                                            parse_mode="HTML")
+                    await asyncio.sleep(0.2)
                 except:
                     await asyncio.sleep(1)
-
-            text = await config.get("ADMIN_ACTIONS", "ready")
-            keyboard = types.InlineKeyboardMarkup()
-            keyboard.add(
-                types.InlineKeyboardButton(text=await config.get("GO_BACK", "goback"), callback_data='goback'))
-
-            await callback_query.message.edit_text(text=text, reply_markup=keyboard)
 
         elif callback_query.data == 'goback':
             text = await config.get('ADMIN_MENU', 'text')

@@ -1,8 +1,8 @@
 from aiogram import types
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
-from kate_bot.config import files_detect
-from kate_bot.database import db
+from config import files_detect
+from database import db
 
 
 async def create_inline_keyboard(items: list, start_callback: str) -> InlineKeyboardMarkup:
@@ -41,9 +41,9 @@ async def admin_menu_keyboard(config, message_id=None):
         await config.get('ADMIN_MENU', 'all_payed'),
         await config.get('ADMIN_MENU', 'call_back'),
         await config.get('ADMIN_MENU', 'push'),
-        await config.get('ADMIN_MENU', 'settings')
+        await config.get('ADMIN_MENU', 'poetry')
     ]
-    callback_data = ['menu_invoices', 'menu_all_payed', "call_back", 'menu_push', 'menu_settings']
+    callback_data = ['menu_invoices', 'menu_all_payed', "call_back", 'menu_push', 'menu_poetry']
     result = []
     keyboard = InlineKeyboardMarkup(row_width=2)
     for text, data in zip(buttons, callback_data):
@@ -51,6 +51,8 @@ async def admin_menu_keyboard(config, message_id=None):
     for i in range(0, len(result), 2):
         row = result[i:i + 2]
         keyboard.add(*row)
+
+    keyboard.add(InlineKeyboardButton(text=await config.get('ADMIN_MENU', 'settings'), callback_data="menu_settings"))
     return keyboard
 
 
@@ -69,15 +71,15 @@ async def to_buy_keyboard(config, poetry=None, kinoterapy=None):
     keyboard = InlineKeyboardMarkup()
     if poetry:
         prices = {
-        'price_reg_uah': await db.get_price('regeneration_uah'),
-        'price_reg_eur': await db.get_price('regeneration_eur')
+            'price_reg_uah': await db.get_price('regeneration_uah'),
+            'price_reg_eur': await db.get_price('regeneration_eur')
         }
     elif kinoterapy:
         prices = {
-        'price_kino_simple_uah': await db.get_price('simple_uah'),
-        'price_kino_simple_eur': await db.get_price('simple_eur'),
-        'price_kino_personal_uah': await db.get_price('personal_uah'),
-        'price_kino_personal_eur': await db.get_price('personal_eur')
+            'price_kino_simple_uah': await db.get_price('simple_uah'),
+            'price_kino_simple_eur': await db.get_price('simple_eur'),
+            'price_kino_personal_uah': await db.get_price('personal_uah'),
+            'price_kino_personal_eur': await db.get_price('personal_eur')
         }
 
     for callback, value in prices.items():
@@ -90,53 +92,107 @@ async def to_buy_keyboard(config, poetry=None, kinoterapy=None):
     return keyboard
 
 
-async def call_back_keyboard(config):
+async def call_back_keyboard(config, page: int = 1, per_page=8):
     users = await db.with_call_back()
     if not users:
         return None
 
+    start_index = (page - 1) * per_page
+    end_index = start_index + per_page
+    current_page_users = users[start_index:end_index]
+
     keyboard = InlineKeyboardMarkup()
-    for user in users:
+    for user in current_page_users:
         user_id, name = user
         text = name
         callback = f"cb/{user_id}"
 
         keyboard.add(InlineKeyboardButton(text=text, callback_data=callback))
+
+    if start_index > 0 and end_index < len(users):
+        keyboard.row(
+            InlineKeyboardButton(text="⬅", callback_data=f"page_cb/{page - 1}"),
+            InlineKeyboardButton(text="➡", callback_data=f"page_cb/{page + 1}"))
+    elif start_index > 0:
+        keyboard.add(InlineKeyboardButton(text="⬅", callback_data=f"page_cb/{page - 1}"))
+    elif end_index < len(users):
+        keyboard.add(InlineKeyboardButton(text="➡", callback_data=f"page_cb/{page + 1}"))
     keyboard.add(types.InlineKeyboardButton(text=await config.get("GO_BACK", "goback"), callback_data="goback"))
 
     return keyboard
 
 
-async def request_keyboard(config):
+async def request_keyboard(config, page: int = 1, per_page=8):
     all_requests = await db.invoices()
     if not all_requests:
         return None
-    
+    start_index = (page - 1) * per_page
+    end_index = start_index + per_page
+    current_page_requests = all_requests[start_index:end_index]
+
     keyboard = InlineKeyboardMarkup()
     info_dict = {
         "personal": await config.get("ADMIN_ACTIONS", "info_dict_personal"),
         "simple": await config.get("ADMIN_ACTIONS", "info_dict_simple")
     }
 
-    for request in all_requests:
+    for request in current_page_requests:
         text = info_dict[request[2]]
         callback = f"request/{request[0]}"
+
+        keyboard.add(InlineKeyboardButton(text=text, callback_data=callback))
+
+    if start_index > 0 and end_index < len(all_requests):
+        keyboard.row(
+            InlineKeyboardButton(text="⬅", callback_data=f"page_request/{page - 1}"),
+            InlineKeyboardButton(text="➡", callback_data=f"page_request/{page + 1}"))
+    elif start_index > 0:
+        keyboard.add(InlineKeyboardButton(text="⬅", callback_data=f"page_request/{page - 1}"))
+    elif end_index < len(all_requests):
+        keyboard.add(InlineKeyboardButton(text="➡", callback_data=f"page_request/{page + 1}"))
+
+    return keyboard
+
+
+async def poetry_keyboard(config):
+    all_requests = await db.poetry_invoices()
+    if not all_requests:
+        return None
+
+    keyboard = InlineKeyboardMarkup()
+
+    for request in all_requests:
+        text = request[1]
+        callback = f"poetry_request/{request[0]}"
 
         keyboard.add(InlineKeyboardButton(text=text, callback_data=callback))
 
     return keyboard
 
 
-async def accepted_keyboard(config):
+async def accepted_keyboard(config, page: int = 1, per_page=8):
     all_requests = await db.accepted_invoices()
     if not all_requests:
         return None
-    
+
+    start_index = (page - 1) * per_page
+    end_index = start_index + per_page
+    current_page_requests = all_requests[start_index:end_index]
+
     keyboard = InlineKeyboardMarkup()
-    for request in all_requests:
-        text = f"{request[0]} - {request[1]}"
+    for request in current_page_requests:
+        text = f"{request[1]}"
         callback = f"payed/{request[0]}"
 
         keyboard.add(InlineKeyboardButton(text=text, callback_data=callback))
+
+    if start_index > 0 and end_index < len(all_requests):
+        keyboard.row(
+            InlineKeyboardButton(text="⬅", callback_data=f"page_payed/{page - 1}"),
+            InlineKeyboardButton(text="➡", callback_data=f"page_payed/{page + 1}"))
+    elif start_index > 0:
+        keyboard.add(InlineKeyboardButton(text="⬅", callback_data=f"page_payed/{page - 1}"))
+    elif end_index < len(all_requests):
+        keyboard.add(InlineKeyboardButton(text="➡", callback_data=f"page_payed/{page + 1}"))
 
     return keyboard
